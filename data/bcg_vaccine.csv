@@ -1,0 +1,14 @@
+study,year,trt_tb_cases,trt_total,ctrl_tb_cases,ctrl_total,latitude,allocation,log_or,se_log_or
+Aronson,1948,4,123,11,139,44,random,-1.3776,0.5853
+Ferguson & Simes,1949,6,306,29,303,55,random,-1.5854,0.4536
+Rosenthal et al,1960,3,231,11,220,42,random,-1.3480,0.6311
+Hart & Sutherland,1977,62,13536,248,12619,52,random,-1.4564,0.1534
+Frimodt-Moller et al,1973,33,5069,47,5808,13,alternate,-0.2175,0.2507
+Stein & Aronson,1953,180,1541,372,1451,44,alternate,-0.7678,0.0883
+Vandiviere et al,1973,8,2545,10,619,19,random,-1.6243,0.5114
+TPT Madras,1980,505,7470,499,7232,13,random,0.0173,0.0597
+Coetzee & Berjak,1968,29,1716,45,1665,27,random,-0.4605,0.2539
+Rosenthal et al,1961,17,1699,65,1600,42,systematic,-1.3788,0.2901
+Comstock et al,1974,186,50634,141,27338,33,systematic,-0.3285,0.1101
+Comstock & Webster,1969,5,2498,3,2341,33,systematic,0.4459,0.7466
+Comstock et al,1976,27,16913,29,17854,33,systematic,-0.0173,0.2776

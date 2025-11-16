@@ -20,6 +20,7 @@ A comprehensive Python framework for **Bayesian Additive Regression Trees (BART)
 - Variable importance via permutation and inclusion frequency
 - Partial dependence plots with uncertainty
 - Interaction strength analysis (Friedman's H-statistic)
+- Leave-one-out cross-validation (with parallelization support)
 - Comprehensive residual diagnostics
 - Model comparison with traditional methods
 - Publication bias assessment (funnel plots)
@@ -44,12 +45,13 @@ A comprehensive Python framework for **Bayesian Additive Regression Trees (BART)
 ### Install Dependencies
 
 ```bash
-# Install required packages
+# Install all requirements
 pip install -r requirements.txt
 
-# Or install individually
+# Or install core dependencies individually
 pip install numpy pandas matplotlib seaborn scipy scikit-learn
-pip install pymc-bart arviz statsmodels
+pip install pymc>=5.0 pymc-bart>=0.5 arviz>=0.16
+pip install statsmodels joblib pytest
 ```
 
 ## 🚀 Quick Start
@@ -74,7 +76,7 @@ bart = BARTMetaRegression(
     n_trees=50,           # Number of trees in ensemble
     n_draws=2000,         # Posterior samples
     n_tune=1000,          # Burn-in samples
-    variance_weighting=True,  # Use inverse-variance weighting
+    estimate_tau=True,    # Estimate between-study heterogeneity
     random_state=42
 )
 
@@ -95,7 +97,7 @@ print(importance)
 
 # Heterogeneity statistics
 het_stats = bart.heterogeneity_stats()
-print(f"I² = {het_stats['I2']:.2f}%")
+print(f"I² = {het_stats['I2_bart']:.2f}%")
 print(f"τ² = {het_stats['tau2']:.4f}")
 ```
 
@@ -111,7 +113,7 @@ fig = viz.forest_plot(
     study_names=['Study 1', 'Study 2', ...],
     effect_sizes=y,
     standard_errors=se,
-    predictions=bart.predictions
+    predictions=bart.predictions_mean
 )
 fig.savefig('forest_plot.png', dpi=300)
 
@@ -120,151 +122,61 @@ fig = viz.diagnostic_panel(bart)
 fig.savefig('diagnostics.png', dpi=300)
 
 # Partial dependence plot
-fig = bart.plot_partial_dependence('Age')
-fig.savefig('pdp_age.png', dpi=300)
+fig = bart.plot_partial_dependence(0)  # First moderator
+fig.savefig('pdp.png', dpi=300)
 
 # Variable importance
 fig = bart.plot_variable_importance()
 fig.savefig('importance.png', dpi=300)
 ```
 
-## ⚡ Computational Considerations
+## 🎓 When to Use BART Meta-Regression?
 
-### Runtime Performance
+### ✅ BART is Well-Suited For:
 
-**Model Fitting** (k=50 studies, p=5 moderators):
-- **BART**: ~60 seconds (varies: 45-90s depending on convergence)
-- **WLS**: ~0.2 seconds
-- **GAM**: ~1-2 seconds
-- **Trade-off**: BART is ~200-300× slower than WLS
-
-**Advanced Diagnostics** (k=50, p=5):
-- **Permutation importance**: ~10 minutes (p × n_repeats × fit_time)
-  - Example: 5 moderators × 5 repeats × 60s = ~25 minutes
-  - Can be parallelized across features
-- **LOO-CV**: ~15 minutes (k × fit_time, parallelizable)
-  - Example: 50 studies × 60s = 50 minutes (sequential)
-- **Partial dependence**: ~2-5 minutes per feature
-  - Depends on grid_resolution and sample_posterior settings
-
-**Scaling** (empirically determined):
-- Sample size: O(k^1.3) - moderately superlinear
-- Number of moderators: O(p^1.1) - nearly linear
-- Rule of thumb: doubling k increases runtime by ~2.5×
-
-### When BART is Worth the Computational Cost
-
-✅ **Use BART when**:
 - **Suspected non-linear dose-response** (e.g., medication dosage, exposure duration)
 - **Unknown interactions between moderators** (exploratory analysis)
 - **Many potential moderators** needing variable selection
 - **Large meta-analyses** (k ≥ 30) with complex relationships
 - **Research questions** where flexibility matters more than speed
 
-⚠️ **Prefer WLS/Linear Meta-Regression when**:
+### ⚠️ Prefer Traditional Linear Meta-Regression When:
+
 - **Confirmatory analysis** of pre-specified linear effects
 - **Simple linear relationships** with few moderators (p ≤ 3)
 - **Time-sensitive analysis** requiring rapid turnaround
 - **Small meta-analyses** (k < 20) where BART may overfit
 - **Interpretable coefficients** are the primary goal
 
-⚠️ **Consider GAM (Generalized Additive Models) when**:
-- Need semi-parametric flexibility with better speed than BART
-- Want smooth non-linear effects with interpretable shapes
-- Have specific hypotheses about which variables are non-linear
+### Sample Size Recommendations
 
-### Optimization Tips
+| Heterogeneity (I²) | Minimum Studies (k) | Recommendation |
+|--------------------|---------------------|----------------|
+| Low (< 25%)        | ≥ 20                | May suffice    |
+| Moderate (25-75%)  | ≥ 30                | Recommended    |
+| High (> 75%)       | ≥ 50                | Recommended    |
+| k < 20             | -                   | Use WLS instead|
 
-**Reduce runtime for large analyses**:
-```python
-# Faster fitting (reduced MCMC samples)
-bart = BARTMetaRegression(
-    n_trees=30,        # Default: 50
-    n_draws=1000,      # Default: 2000
-    n_tune=500,        # Default: 1000
-    random_state=42
-)
+## 📚 Documentation
 
-# Skip expensive diagnostics during exploration
-importance = bart.variable_importance(method='inclusion')  # Fast tree-based
-# Instead of: method='permutation' (slow, requires refitting)
+This project includes comprehensive documentation:
 
-# Reduce partial dependence resolution
-pd_result = bart.partial_dependence(
-    feature_idx=0,
-    grid_resolution=25,      # Default: 50
-    sample_posterior=False   # Use point estimates only
-)
-```
+- **README.md** (this file) - Quick start and overview
+- **[TUTORIAL.md](TUTORIAL.md)** - Step-by-step examples and complete workflows
+- **[ADVANCED.md](ADVANCED.md)** - Computational details, performance tuning, and customization
+- **[tutorial.md](tutorial.md)** - Original detailed tutorial (comprehensive reference)
 
-**Parallelize when possible**:
-- LOO-CV: Can be parallelized across studies (future enhancement)
-- Permutation importance: Can parallelize across features
-- Multiple meta-analyses: Fit models in parallel
+## 🔬 Example Workflows
 
-### Performance vs. Sample Size
-
-| k (studies) | p (moderators) | Fit Time | Permutation Importance | LOO-CV |
-|-------------|----------------|----------|------------------------|--------|
-| 20          | 3              | ~15s     | ~2 min                 | ~5 min |
-| 30          | 5              | ~30s     | ~8 min                 | ~15 min |
-| 50          | 5              | ~60s     | ~25 min                | ~50 min |
-| 75          | 7              | ~120s    | ~60 min                | ~2.5 hr |
-| 100         | 10             | ~240s    | ~2 hr                  | ~6 hr |
-
-*Note: Times are approximate and depend on hardware, convergence, and data complexity*
-
-### Recommended Workflow
-
-**1. Initial Exploration** (fast):
-```python
-# Fit with reduced settings
-bart = BARTMetaRegression(n_trees=30, n_draws=1000, n_tune=500)
-bart.fit(X, y, se)
-
-# Quick diagnostics
-print(bart.summary())
-importance = bart.variable_importance(method='inclusion')  # Fast
-```
-
-**2. Refinement** (moderate):
-```python
-# Standard settings for important features
-bart = BARTMetaRegression()  # Use defaults
-bart.fit(X_selected, y, se)  # Subset to important features
-
-# Partial dependence for key moderators
-for feature in top_features:
-    pd = bart.partial_dependence(feature, sample_posterior=False)
-```
-
-**3. Final Analysis** (comprehensive):
-```python
-# Full settings for publication
-bart = BARTMetaRegression(n_trees=75, n_draws=2000, n_tune=1000)
-bart.fit(X, y, se)
-
-# Full diagnostics
-importance = bart.variable_importance(method='permutation', n_repeats=10)
-loo_results = bart.leave_one_out()
-# Partial dependence with uncertainty
-pd = bart.partial_dependence(feature, sample_posterior=True)
-```
-
-## 📊 Complete Examples
-
-### Example 1: Linear Meta-Regression
+### Simple Analysis
 
 ```python
+from bart_meta_regression import BARTMetaRegression
 from simulation_studies import MetaAnalysisSimulator
 
 # Generate simulated data
 simulator = MetaAnalysisSimulator(random_state=42)
-data = simulator.generate_linear_scenario(
-    n_studies=50,
-    n_features=3,
-    tau2=0.05
-)
+data = simulator.generate_linear_scenario(n_studies=50, n_features=3)
 
 # Fit BART model
 bart = BARTMetaRegression(random_state=42)
@@ -272,151 +184,85 @@ bart.fit(data['X'], data['y'], data['se'])
 
 # Analyze results
 print(bart.summary())
-print(bart.variable_importance())
+importance = bart.variable_importance(method='inclusion')  # Fast method
 ```
 
-### Example 2: Non-Linear Dose-Response
+### Advanced Analysis with Diagnostics
 
 ```python
-# Generate data with quadratic dose-response
-data = simulator.generate_nonlinear_scenario(
-    n_studies=60,
-    nonlinear_type='quadratic'  # or 'cubic', 'sinusoidal', 'threshold'
-)
-
-# Fit BART (automatically detects non-linearity)
-bart = BARTMetaRegression(n_trees=75, random_state=42)
-bart.fit(data['X'], data['y'], data['se'])
-
-# Visualize non-linear relationship
-fig = bart.plot_partial_dependence(0)  # First moderator (dose)
-```
-
-### Example 3: Interaction Detection
-
-```python
-# Generate data with interaction
-data = simulator.generate_interaction_scenario(
-    n_studies=70,
-    interaction_strength=0.6
-)
-
-# Fit BART (automatically detects interactions)
-bart = BARTMetaRegression(random_state=42)
-bart.fit(data['X'], data['y'], data['se'])
-
-# Analyze interactions
-for i in range(data['X'].shape[1]):
-    for j in range(i+1, data['X'].shape[1]):
-        strength = bart.interaction_strength(i, j)
-        print(f"Interaction {i}-{j}: {strength:.3f}")
-```
-
-### Example 4: Model Comparison
-
-```python
-from bart_meta_regression import compare_with_linear_meta_regression
-
-# Compare BART vs traditional linear meta-regression
-comparison = compare_with_linear_meta_regression(
-    X=data['X'],
-    y=data['y'],
-    se=data['se'],
-    cv_folds=5
-)
-
-print(comparison)
-#           Model                 RMSE (mean ± std)       R² (mean ± std)
-# BART Meta-Regression     0.1234 ± 0.0156      0.8765 ± 0.0234
-# Linear Meta-Regression   0.2345 ± 0.0234      0.6543 ± 0.0456
-```
-
-## 🔬 Simulation Studies
-
-Run comprehensive Monte Carlo simulations to evaluate performance:
-
-```python
-from simulation_studies import run_comprehensive_simulation_study
-
-# Run simulations across multiple scenarios
-results = run_comprehensive_simulation_study(
-    n_simulations=100,
+# Fit with full settings
+bart = BARTMetaRegression(
+    n_trees=75,
+    n_draws=2000,
+    n_tune=1000,
+    estimate_tau=True,
     random_state=42
 )
+bart.fit(X, y, se, feature_names=feature_names)
 
-# Results include:
-# - Linear scenario
-# - Quadratic scenario
-# - Interaction scenario
-# - Complex scenario (multiple non-linearities + interactions)
+# Comprehensive diagnostics
+importance = bart.variable_importance(method='permutation', n_repeats=10)
+loo_results = bart.leave_one_out(verbose=True, n_jobs=-1)  # Parallel LOO-CV
+het_stats = bart.heterogeneity_stats()
 
-# Each scenario reports:
-# - RMSE (prediction accuracy)
-# - R² (variance explained)
-# - Coverage probability (CI calibration)
+# Partial dependence for top moderators
+for feature_idx in range(3):
+    fig = bart.plot_partial_dependence(
+        feature_idx,
+        grid_resolution=50,
+        sample_posterior=True
+    )
+    fig.savefig(f'pdp_feature_{feature_idx}.png', dpi=300)
 ```
 
-## 📈 Advanced Features
+See **[TUTORIAL.md](TUTORIAL.md)** for complete step-by-step examples.
 
-### Custom Prior Specification
+## ⚡ Performance Notes
+
+**Typical Runtime** (k=50 studies, p=5 moderators):
+- Model fitting: ~60 seconds
+- Permutation importance: ~10-25 minutes
+- LOO-CV (sequential): ~50 minutes
+- LOO-CV (parallel, 8 cores): ~6-8 minutes
+
+**NEW in v2.2.0**: LOO-CV now supports parallelization for 3-15× speedup!
 
 ```python
-bart = BARTMetaRegression(
-    alpha=0.95,  # Base probability for tree prior (higher = shallower trees)
-    beta=2.0,    # Power in tree prior (controls tree depth)
-    n_trees=100  # More trees = better approximation
-)
+# Use all CPU cores for LOO-CV
+loo_results = bart.leave_one_out(verbose=True, n_jobs=-1)
 ```
 
-### Prediction on New Studies
+See **[ADVANCED.md](ADVANCED.md)** for detailed performance analysis and optimization strategies.
+
+## 🧪 Testing
+
+This project uses pytest for comprehensive testing:
+
+```bash
+# Run all tests
+pytest -v
+
+# Run tests excluding slow ones
+pytest -v -m "not slow"
+
+# Run with coverage
+pytest --cov=bart_meta_regression --cov-report=html
+```
+
+## 📊 Real Data Examples
+
+The project includes a real data vignette using the classic BCG vaccine meta-analysis:
 
 ```python
-# Fit model
-bart.fit(X_train, y_train, se_train)
+# See bcg_vaccine_vignette.py for complete example
+from bcg_vaccine_vignette import run_bcg_analysis
 
-# Predict on new studies
-predictions = bart.predict(X_new, return_std=True)
-pred_mean, pred_std = predictions
-
-# Get quantiles
-pred_quantiles = bart.predict(X_new, quantiles=[0.025, 0.5, 0.975])
+results = run_bcg_analysis()
 ```
 
-### Variable Importance Methods
+This demonstrates BART meta-regression on a published meta-analysis dataset.
 
-```python
-# Permutation importance (default, more reliable)
-importance_perm = bart.variable_importance(method='permutation', n_repeats=10)
-
-# Inclusion frequency (faster, tree-based)
-importance_inc = bart.variable_importance(method='inclusion')
-```
-
-## 📚 Citation
-
-If you use this software in your research, please cite:
-
-```bibtex
-@software{bart_meta_regression,
-  title = {BART Meta-Regression: Advanced Bayesian Nonparametric Meta-Analysis},
-  author = {[Your Name]},
-  year = {2025},
-  url = {https://github.com/yourusername/bart-meta-regression}
-}
-```
-
-### Key References
-
-**BART Methodology:**
-- Chipman, H. A., George, E. I., & McCulloch, R. E. (2010). BART: Bayesian additive regression trees. *The Annals of Applied Statistics*, 4(1), 266-298.
-
-**Meta-Regression:**
-- Thompson, S. G., & Higgins, J. P. (2002). How should meta‐regression analyses be undertaken and interpreted? *Statistics in Medicine*, 21(11), 1559-1573.
-
-**BART for Meta-Analysis:**
-- [Your forthcoming publication]
-
-## 🎓 Methodological Advantages
+## 📈 Methodological Advantages
 
 ### Why BART for Meta-Regression?
 
@@ -432,54 +278,49 @@ If you use this software in your research, please cite:
 
 6. **Uncertainty Quantification**: Full posterior distribution provides rigorous uncertainty quantification.
 
-### When to Use BART Meta-Regression?
+## 🔗 Key References
 
-✅ **Good for:**
-- Suspected non-linear dose-response relationships
-- Unknown interactions between moderators
-- Many potential moderators (variable selection needed)
-- Complex relationships in large meta-analyses
-- Exploratory moderator analysis
+**BART Methodology:**
+- Chipman, H. A., George, E. I., & McCulloch, R. E. (2010). BART: Bayesian additive regression trees. *The Annals of Applied Statistics*, 4(1), 266-298.
 
-⚠️ **Less suitable for:**
-- Very small meta-analyses (< 20 studies)
-- Simple linear relationships with few moderators
-- When interpretability of linear coefficients is critical
-- Confirmatory hypothesis testing of pre-specified linear effects
+**Meta-Regression:**
+- Thompson, S. G., & Higgins, J. P. (2002). How should meta‐regression analyses be undertaken and interpreted? *Statistics in Medicine*, 21(11), 1559-1573.
+
+**BCG Vaccine Data:**
+- Colditz, G. A., et al. (1994). Efficacy of BCG vaccine in the prevention of tuberculosis. *JAMA*, 271(9), 698-702.
+
+## 📄 Citation
+
+If you use this software in your research, please cite:
+
+```bibtex
+@software{bart_meta_regression,
+  title = {BART Meta-Regression: Advanced Bayesian Nonparametric Meta-Analysis},
+  author = {Advanced Meta-Analysis Research Team},
+  year = {2025},
+  version = {2.2.0},
+  url = {https://github.com/yourusername/bart-meta-regression}
+}
+```
 
 ## 🛠️ Project Structure
 
 ```
 .
-├── bart_meta_regression.py    # Core BART meta-regression implementation
-├── visualization.py            # Publication-quality visualizations
-├── simulation_studies.py       # Monte Carlo simulation framework
-├── example_usage.py           # Comprehensive examples
-├── requirements.txt           # Package dependencies
-└── README.md                 # This file
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Issue**: PyMC-BART installation fails
-```bash
-# Solution: Install PyMC first
-pip install pymc>=5.0
-pip install pymc-bart
-```
-
-**Issue**: Slow sampling
-```bash
-# Solution: Reduce number of trees or samples
-bart = BARTMetaRegression(n_trees=30, n_draws=1000, n_tune=500)
-```
-
-**Issue**: Memory errors with large datasets
-```bash
-# Solution: Use fewer posterior samples or trees
-bart = BARTMetaRegression(n_trees=25, n_draws=500)
+├── bart_meta_regression.py       # Core BART meta-regression implementation
+├── visualization.py               # Publication-quality visualizations
+├── simulation_studies.py          # Monte Carlo simulation framework
+├── utils.py                       # Helper functions
+├── example_usage.py              # Comprehensive examples
+├── bcg_vaccine_vignette.py       # Real data analysis example
+├── test_bart_fixes_pytest.py     # Pytest test suite
+├── requirements.txt              # Package dependencies
+├── pytest.ini                    # Pytest configuration
+├── README.md                     # This file
+├── TUTORIAL.md                   # Step-by-step tutorial
+├── ADVANCED.md                   # Advanced usage and performance
+└── data/                         # Example datasets
+    └── bcg_vaccine.csv
 ```
 
 ## 🤝 Contributing
@@ -491,22 +332,44 @@ Contributions are welcome! Areas for enhancement:
 - Network meta-regression
 - Publication bias adjustment methods
 
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**PyMC-BART installation fails:**
+```bash
+pip install pymc>=5.0
+pip install pymc-bart>=0.5
+```
+
+**Slow sampling:**
+```python
+# Reduce number of trees or samples
+bart = BARTMetaRegression(n_trees=30, n_draws=1000, n_tune=500)
+```
+
+**Memory errors:**
+```python
+# Use fewer posterior samples or trees
+bart = BARTMetaRegression(n_trees=25, n_draws=500)
+```
+
+See **[ADVANCED.md](ADVANCED.md)** for detailed troubleshooting and optimization.
+
 ## 📄 License
 
 MIT License - see LICENSE file for details
-
-## 📞 Contact
-
-For questions, issues, or collaborations:
-- Open an issue on GitHub
-- Email: [your.email@institution.edu]
 
 ## 🙏 Acknowledgments
 
 - PyMC development team for PyMC-BART
 - Meta-analysis research community
-- [Funding sources, if applicable]
+- Peer reviewers who provided invaluable feedback
 
 ---
 
-**Note**: This is research software. Always validate results with domain expertise and consider comparison with traditional methods for robustness.
+**Version**: 2.2.0 (Post-Acceptance Enhancements)
+
+**Status**: Research software. Always validate results with domain expertise and consider comparison with traditional methods for robustness.
+
+For detailed examples, see **[TUTORIAL.md](TUTORIAL.md)**. For performance optimization and advanced features, see **[ADVANCED.md](ADVANCED.md)**.
