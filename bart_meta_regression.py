@@ -588,33 +588,33 @@ class BARTMetaRegression:
 
         Returns
         -------
-        stats : dict
+        het_stats : dict
             - tau2: Posterior mean of τ² (between-study variance from BART model)
             - tau2_lower, tau2_upper: 95% credible interval for τ²
             - I2_bart: BART-based I² (proportion of total variance from heterogeneity)
             - Q: Residual Cochran's Q
             - Q_pvalue: P-value for residual heterogeneity test
         """
-        stats = {}
+        het_stats = {}
 
         # Posterior of τ²
         if self.estimate_tau and self.tau_posterior is not None:
             tau2_samples = self.tau_posterior ** 2
-            stats['tau2'] = tau2_samples.mean()
-            stats['tau2_lower'] = np.percentile(tau2_samples, 2.5)
-            stats['tau2_upper'] = np.percentile(tau2_samples, 97.5)
-            stats['tau'] = self.tau_posterior.mean()
+            het_stats['tau2'] = tau2_samples.mean()
+            het_stats['tau2_lower'] = np.percentile(tau2_samples, 2.5)
+            het_stats['tau2_upper'] = np.percentile(tau2_samples, 97.5)
+            het_stats['tau'] = self.tau_posterior.mean()
 
             # BART-based I²: τ² / (τ² + mean(σ²))
             mean_within_var = np.mean(self.se_train ** 2)
-            total_var = stats['tau2'] + mean_within_var
-            stats['I2_bart'] = 100 * (stats['tau2'] / total_var) if total_var > 0 else 0
+            total_var = het_stats['tau2'] + mean_within_var
+            het_stats['I2_bart'] = 100 * (het_stats['tau2'] / total_var) if total_var > 0 else 0
         else:
-            stats['tau2'] = 0.0
-            stats['tau2_lower'] = 0.0
-            stats['tau2_upper'] = 0.0
-            stats['tau'] = 0.0
-            stats['I2_bart'] = 0.0
+            het_stats['tau2'] = 0.0
+            het_stats['tau2_lower'] = 0.0
+            het_stats['tau2_upper'] = 0.0
+            het_stats['tau'] = 0.0
+            het_stats['I2_bart'] = 0.0
 
         # Residual heterogeneity test (Q statistic on BART residuals)
         weights = 1.0 / self.se_train**2
@@ -623,15 +623,15 @@ class BARTMetaRegression:
         df = len(self.y_train) - self.X_train.shape[1] - 1
         df = max(1, df)  # Ensure positive df
 
-        stats['Q_residual'] = Q
-        stats['Q_df'] = df
-        stats['Q_pvalue'] = 1 - stats.chi2.cdf(Q, df) if Q > 0 else 1.0
+        het_stats['Q_residual'] = Q
+        het_stats['Q_df'] = df
+        het_stats['Q_pvalue'] = 1 - stats.chi2.cdf(Q, df) if Q > 0 else 1.0
 
         # Classical I² for comparison (may underestimate with BART)
         I2_classical = max(0, 100 * (Q - df) / Q) if Q > df else 0
-        stats['I2_classical'] = I2_classical
+        het_stats['I2_classical'] = I2_classical
 
-        return stats
+        return het_stats
 
     def get_tau2(self) -> float:
         """Get posterior mean of between-study variance."""
