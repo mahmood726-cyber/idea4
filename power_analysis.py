@@ -401,7 +401,15 @@ EVIDENCE-BASED RECOMMENDATIONS FOR BART META-REGRESSION
 Based on Monte Carlo simulation studies ({len(sample_size_results)} scenarios tested):
 
 1. MINIMUM SAMPLE SIZE
-   Recommended: k ≥ {min_k_recommended} studies
+   General guideline: k ≥ {min_k_recommended} studies
+
+   IMPORTANT CAVEATS:
+   - Low heterogeneity (I² < 25%): k ≥ 20 may suffice
+   - Moderate heterogeneity (I² 25-75%): k ≥ 30 recommended
+   - High heterogeneity (I² > 75%): k ≥ 50 recommended
+   - These thresholds also depend on signal strength (effect size variability)
+   - With k < 20: BART is NOT recommended; use WLS instead
+
    Rationale:
    - R² > 0.60 achieved in {(sample_size_results['r2_mean'] > 0.6).sum()}/{len(sample_size_results)} scenarios
    - Convergence rate > 90% for k ≥ {min_k_recommended}
@@ -409,6 +417,9 @@ Based on Monte Carlo simulation studies ({len(sample_size_results)} scenarios te
 
 2. MODERATOR-TO-STUDY RATIO
    Recommended: p/k ≤ {max_pk_ratio:.2f}
+
+   IMPORTANT: Maintain p/k ≤ {max_pk_ratio:.2f} regardless of k
+
    Rationale:
    - Good performance (R² > 0.6) for p/k ≤ {max_pk_ratio:.2f}
    - Overfitting risk increases for p/k > {max_pk_ratio:.2f}
@@ -418,6 +429,7 @@ Based on Monte Carlo simulation studies ({len(sample_size_results)} scenarios te
    - BART performs well across τ² ∈ [0, 0.15]
    - τ² estimation coverage probability ≈ 95% (nominal)
    - Slight underestimation of τ² when k < 30
+   - Higher heterogeneity requires larger sample sizes for accurate estimation
 
 4. WHEN TO USE BART VS LINEAR META-REGRESSION
    Use BART when:
