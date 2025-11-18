@@ -8,7 +8,7 @@ Meta-regression has become an essential tool for understanding heterogeneity in 
 
 Traditional meta-regression models assume that the relationship between moderators and effect sizes follows a linear form. While this approach offers interpretable coefficients and computational efficiency, it imposes strong assumptions that may not align with underlying mechanisms. For instance, dose-response relationships often exhibit non-linear patterns such as threshold effects, inverted-U curves, or saturation phenomena. Similarly, interaction effects between moderators are ubiquitous in social and health sciences, yet linear meta-regression requires researchers to pre-specify which interactions to test—a challenging task when theoretical guidance is limited.
 
-The consequences of model misspecification extend beyond statistical inefficiency. When true relationships are non-linear or involve higher-order interactions, linear models may fail to detect genuine moderator effects, leading to incorrect conclusions about homogeneity. Conversely, forcing non-linear patterns into linear frameworks can produce misleading coefficient estimates and inflate false positive rates. These issues are particularly problematic in large meta-analyses with many potential moderators, where variable selection becomes essential but traditional stepwise procedures lack theoretical justification and suffer from instability.
+The consequences of model misspecification extend beyond statistical inefficiency. When true relationships are non-linear or involve higher-order interactions, linear models may fail to detect genuine moderator effects, leading to incorrect conclusions about homogeneity. Conversely, forcing non-linear patterns into linear frameworks can produce misleading coefficient estimates and reduce power to detect true effects. These issues are particularly problematic in large meta-analyses with many potential moderators, where variable selection becomes essential but traditional stepwise procedures lack theoretical justification and suffer from instability.
 
 ## BART Meta-Regression: A Flexible Framework
 
@@ -46,7 +46,7 @@ Looking forward, several extensions promise additional value. Multivariate meta-
 
 ## Conclusion
 
-BART meta-regression provides a rigorous, flexible framework for investigating heterogeneity in meta-analysis. The method balances statistical power with interpretability, offering automatic detection of non-linear relationships and interactions while maintaining the transparency essential for scientific inference. Comprehensive simulation studies and open-source software implementation facilitate adoption across research domains. As meta-analyses grow larger and more complex, methods like BART that can accommodate this complexity while avoiding overfitting become increasingly essential for advancing evidence-based decision-making.
+BART meta-regression provides a rigorous, flexible framework for investigating heterogeneity in meta-analysis. The method balances statistical power with interpretability, offering automatic detection of non-linear relationships and interactions while maintaining the transparency essential for scientific inference. Simulation studies and open-source software implementation facilitate adoption across research domains. As meta-analyses grow larger and more complex, methods like BART that can accommodate this complexity while avoiding overfitting become increasingly essential for advancing evidence-based decision-making.
 
 ---
 
